@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Log in · My College Money Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body{min-height:100vh;display:grid;place-items:center;padding:22px;background-color:#f5f1e8;background-image:radial-gradient(#d8d0c1 .8px,transparent .8px);background-size:16px 16px}
+    .login-shell{width:min(100%,440px)}
+    .login-brand{margin:0 0 18px;text-align:center}
+    .login-brand .eyebrow{font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#655e52}
+    .login-brand h1{font-size:clamp(27px,6vw,36px);line-height:1.08;margin:9px 0;font-weight:950;letter-spacing:-1.2px;color:#111}
+    .login-brand p{margin:0;color:#625d55;font-weight:600;font-size:14px}
+    .login-card{border:2px solid #111;border-radius:22px;background:#fffdf8;padding:clamp(22px,5vw,32px);box-shadow:7px 7px 0 #111}
+    .login-card h2{margin:0 0 7px;font-size:23px;font-weight:950;letter-spacing:-.5px}
+    .login-card .hint{margin:0 0 23px;color:#625d55;font-size:13px;line-height:1.55;font-weight:600}
+    .field{display:grid;gap:7px;margin:15px 0}.field label{font-size:12px;font-weight:900;color:#3e3932}.field input{width:100%;padding:13px 14px;border:1.5px solid #111;border-radius:11px;background:white;color:#111;font:inherit;font-weight:650;outline:none}.field input:focus{box-shadow:3px 3px 0 #ffdf32}
+    .login-submit{width:100%;margin-top:9px;padding:13px 16px;border:1.8px solid #111;border-radius:12px;background:#ffdf32;color:#111;font-weight:950;box-shadow:3px 3px 0 #111;cursor:pointer}.login-submit:disabled{opacity:.65;cursor:wait}
+    .login-error{display:none;margin:12px 0 0;padding:11px 12px;border:1px solid #b4234b;border-radius:10px;background:#ffe6ec;color:#8e1537;font-size:13px;font-weight:750}.login-foot{text-align:center;margin:19px 0 0;color:#6c655b;font-size:11px;font-weight:650}
+  </style>
+</head>
+<body>
+  <main class="login-shell">
+    <header class="login-brand"><div class="eyebrow">Personal finance</div><h1>My College<br>Money Tracker</h1><p>One place for Dad's money, college fees, and expenses.</p></header>
+    <section class="login-card" aria-labelledby="loginTitle">
+      <h2 id="loginTitle">Welcome back</h2><p class="hint">Sign in with your private account to open the tracker.</p>
+      <form id="loginForm">
+        <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required maxlength="80" autofocus></div>
+        <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="200"></div>
+        <button class="login-submit" id="submitButton" type="submit">Log in <span aria-hidden="true">→</span></button>
+        <p class="login-error" id="errorMessage" role="alert"></p>
+      </form>
+    </section>
+    <p class="login-foot">Private access · My College Money Tracker</p>
+  </main>
+  <script src="/login.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "my-college-money-tracker",
+  "version": "1.0.1",
+  "private": true,
+  "description": "College money and expense tracker",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

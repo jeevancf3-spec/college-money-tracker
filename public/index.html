@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My College Money Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">Personal finance</div>
+      <h1>My College Money Tracker</h1>
+      <p>Track money from Dad, your spending, semester fees, and your balance.</p>
+    </div>
+    <div class="account-actions"><span id="signedInAs" aria-live="polite"></span><button id="logoutButton" type="button" class="action">Log out</button></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-section="dashboard">Dashboard</button>
+    <button class="tab" data-section="dad">Dad Money</button>
+    <button class="tab" data-section="expenses">My Expenses</button>
+    <button class="tab" data-section="semester">Semester Fee</button>
+  </nav>
+
+  <main>
+    <section id="dashboard" class="section active">
+      <div class="cards">
+        <div class="card received"><span>Total Received (Dad)</span><strong id="totalReceived">₹0.00</strong></div>
+        <div class="card spent"><span>Total Spent (All)</span><strong id="totalSpent">₹0.00</strong></div>
+        <div class="card balance"><span>Overall Balance</span><strong id="balance">₹0.00</strong></div>
+      </div>
+
+      <div class="cards small">
+        <div class="card"><span>Today Received</span><strong id="todayReceived">₹0.00</strong></div>
+        <div class="card"><span>Today Spent</span><strong id="todaySpent">₹0.00</strong></div>
+        <div class="card"><span>This Month Received</span><strong id="monthReceived">₹0.00</strong></div>
+        <div class="card"><span>This Month Spent</span><strong id="monthSpent">₹0.00</strong></div>
+        <div class="card"><span>This Year Received</span><strong id="yearReceived">₹0.00</strong></div>
+        <div class="card"><span>This Year Spent</span><strong id="yearSpent">₹0.00</strong></div>
+      </div>
+
+      <div class="dashboard-charts">
+        <div class="panel chart-panel">
+          <div class="chart-heading"><div><span class="eyebrow">SPENDING ANALYSIS</span><h2>Where your money goes</h2><p>Expenses grouped by category</p></div><span class="chart-mark">↗</span></div>
+          <div id="categoryChart" class="category-chart" aria-live="polite"><p class="muted">Loading expense data…</p></div>
+        </div>
+        <div class="panel chart-panel">
+          <div class="chart-heading"><div><span class="eyebrow">MONTHLY OVERVIEW</span><h2>Monthly spending</h2><p>Last six months, including semester fee payments</p></div><span class="chart-mark chart-mark-purple">▥</span></div>
+          <div id="monthlyChart" class="monthly-chart" aria-live="polite"><p class="muted">Loading expense data…</p></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <h2>Semester Fee — Separate</h2>
+          <div class="semester-cards">
+            <div><span>Total Semester Fee Paid</span><strong id="paidSemester">₹0.00</strong></div>
+            <div><span>Semester Fee Money from Dad</span><strong id="dadSemester">₹0.00</strong></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Category Summary</h2>
+          <div class="summary-grid">
+            <div><h3>Semester Fee</h3><div id="semesterSummary"></div></div>
+            <div><h3>Dad Money</h3><div id="dadSummary"></div></div>
+            <div><h3>My Expenses</h3><div id="expenseSummary"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="dad" class="section">
+      <div class="section-head"><div><h2>Dad Money</h2><p>Only money received from Dad.</p></div><button class="primary" onclick="openDadForm()">+ Add Money</button></div>
+      <div class="panel filters">
+        <input id="dadSearch" placeholder="Search reason or date">
+        <select id="dadPreset"><option value="">All dates</option><option value="today">Today</option><option value="month">This Month</option><option value="year">This Year</option></select>
+        <input type="date" id="dadFrom"><input type="date" id="dadTo">
+        <select id="dadSort"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="highest">Highest Amount</option><option value="lowest">Lowest Amount</option></select>
+      </div>
+      <div class="cards small"><div class="card"><span>Filtered Total</span><strong id="dadFilteredTotal">₹0.00</strong></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="dadTable"></tbody></table></div>
+    </section>
+
+    <section id="expenses" class="section">
+      <div class="section-head"><div><h2>My Expenses</h2><p>Only money you actually spent.</p></div><button class="primary" onclick="openExpenseForm()">+ Add Expense</button></div>
+      <div class="panel filters">
+        <input id="expenseSearch" placeholder="Search category, note or date">
+        <select id="expensePreset"><option value="">All dates</option><option value="today">Today</option><option value="month">This Month</option><option value="year">This Year</option></select>
+        <input type="date" id="expenseFrom"><input type="date" id="expenseTo">
+        <select id="expenseCategoryFilter"><option value="">All categories</option><option>Print</option><option>Text</option><option>Food</option><option>Fine</option><option>Semester Fee</option><option>Other</option></select>
+        <select id="expenseSort"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="highest">Highest Amount</option><option value="lowest">Lowest Amount</option></select>
+      </div>
+      <div class="cards small"><div class="card"><span>Filtered Total</span><strong id="expenseFilteredTotal">₹0.00</strong></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Category</th><th>Note</th><th>Actions</th></tr></thead><tbody id="expenseTable"></tbody></table></div>
+    </section>
+
+    <section id="semester" class="section">
+      <div class="section-head">
+        <div><h2>Semester Fee</h2><p>Track money Dad gives for semester fees separately from payments made directly to college.</p></div>
+      </div>
+      <div class="semester-cards large">
+        <div><span>Total Semester Fee Paid</span><strong id="semesterPaidBig">₹0.00</strong></div>
+        <div><span>Total Semester Fee Money from Dad</span><strong id="semesterDadBig">₹0.00</strong></div>
+        <div><span>Overall Total Received (Dad)</span><strong id="semesterOverallReceived">₹0.00</strong></div>
+        <div><span>Overall Total Spent</span><strong id="semesterOverallSpent">₹0.00</strong></div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><div><h2>Payment to College</h2><p>Record each college fee payment with its semester, amount and payment date.</p></div><button class="primary" onclick="openSemesterPaymentForm()">+ Add Payment</button></div>
+        <div class="cards small"><div class="card"><span>Total Semester Fee</span><strong id="semesterFilteredTotal">₹0.00</strong></div></div>
+        <div class="panel filters">
+          <input id="semesterSearch" placeholder="Search semester, date or note">
+          <select id="semesterPreset"><option value="">All dates</option><option value="today">Today</option><option value="month">This Month</option><option value="year">This Year</option></select>
+          <select id="semesterSort"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="highest">Highest Amount</option><option value="lowest">Lowest Amount</option></select>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Semester</th><th>Amount Paid</th><th>Date Paid</th><th>Note</th><th>Actions</th></tr></thead><tbody id="semesterPaidTable"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><div><h2>Dad → Semester Fee Money</h2><p>Keep money Dad gave for semester fee separate from the actual college payment.</p></div><button class="primary" onclick="openSemesterDadForm()">+ Add Money</button></div>
+        <div class="cards small"><div class="card"><span>Total from Dad for Semester Fee</span><strong id="semesterDadListTotal">₹0.00</strong></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Semester</th><th>Amount</th><th>Date Received</th><th>Note</th><th>Actions</th></tr></thead><tbody id="semesterDadTable"></tbody></table></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <button class="close" onclick="closeModal()">×</button>
+      <h2 id="modalTitle"></h2>
+      <form id="modalForm"></form>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
