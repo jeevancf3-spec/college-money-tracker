@@ -1,0 +1,17 @@
+MY COLLEGE MONEY TRACKER — UPDATED PROJECT
+
+1. Extract this ZIP.
+2. Open the extracted my-college-money-tracker folder in VS Code.
+3. Open Terminal > New Terminal.
+4. Run: npm start
+5. Open http://localhost:3000 in your browser.
+
+If port 3000 is already in use, stop the other tracker server first, or close its terminal with Ctrl+C before running npm start.
+
+Your existing money-tracker-data.json file is included. Keep a backup of this file before making major changes; it stores the tracker records.
+
+
+Dashboard design update
+- Refreshed minimal UI theme with soft neutral surfaces and yellow, mint, purple, and blue accents.
+- Added a live expense-category breakdown and a six-month spending chart to the Dashboard.
+- Charts use the records already stored in money-tracker-data.json, including semester fee payments.
