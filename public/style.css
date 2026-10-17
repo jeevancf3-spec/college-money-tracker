@@ -117,3 +117,33 @@ td{font-size:14px}
  .table-wrap td .more-menu>summary{padding:3px 6px;font-size:18px}
  .table-wrap td .action{padding:4px 5px;font-size:9px}
 }
+
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.record-actions .action {
+  min-height: 38px;
+  padding: 7px 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.record-actions .danger-text {
+  color: #a11;
+}
+
+@media (max-width: 700px) {
+  .record-actions {
+    gap: 8px;
+  }
+
+  .record-actions .action {
+    min-height: 44px;
+    padding: 9px 12px;
+  }
+}
+

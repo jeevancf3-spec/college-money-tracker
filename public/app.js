@@ -33,22 +33,22 @@ function displaySemester(value){return esc(normalizedSemester(value)||value||'-'
 async function loadSemester(){const query=q('semester');semesterDadRows=await api('/api/semester/dad?'+query);semesterPaymentRows=await api('/api/semester/payments?'+query);$('semesterDadTable').innerHTML=semesterDadRows.length?semesterDadRows.map(x=>`<tr><td>${displaySemester(x.semester)}</td><td>${money(x.amount)}</td><td>${x.date}</td><td>${esc(x.note||'')}</td><td>${x.receipt?`<button class="action" onclick="viewReceipt('semesterDad',${x.id})">Receipt</button>`:'<span class="muted">Receipt not added</span>'}</td><td>${moreMenu('semesterDad',x.id)}</td></tr>`).join(''):'<tr><td colspan="6" class="muted">No Dad Semester Fee records yet.</td></tr>';$('semesterPaidTable').innerHTML=semesterPaymentRows.length?semesterPaymentRows.map(x=>`<tr><td>${displaySemester(x.semester)}</td><td>${money(x.amount)}</td><td>${x.date}</td><td>${esc(x.note||'')}</td><td>${x.receipt?`<button class="action" onclick="viewReceipt('semesterPayment',${x.id})">Receipt</button>`:'<span class="muted">Receipt not added</span>'}</td><td>${moreMenu('semesterPayment',x.id)}</td></tr>`).join(''):'<tr><td colspan="6" class="muted">No college Semester Fee payments yet.</td></tr>';$('semesterFilteredTotal').textContent=money(semesterPaymentRows.reduce((a,x)=>a+Number(x.amount),0));$('semesterDadListTotal').textContent=money(semesterDadRows.reduce((a,x)=>a+Number(x.amount),0))}
 
 
+
 function moreMenu(type, id) {
   return `
-    <details class="more-menu">
-      <summary
-        aria-label="More actions"
-        role="button"
-        tabindex="0"
-        onclick="event.stopPropagation()"
-      >⋮</summary>
-      <div class="more-menu-items">
-        <button type="button" onclick="event.stopPropagation(); runMoreAction('${type}',${id},'edit')">Edit</button>
-        <button type="button" class="danger-text" onclick="event.stopPropagation(); runMoreAction('${type}',${id},'delete')">Delete</button>
-      </div>
-    </details>
+    <div class="record-actions">
+      <button type="button" class="action"
+        onclick="runMoreAction('${type}',${id},'edit')">
+        Edit
+      </button>
+      <button type="button" class="action danger-text"
+        onclick="runMoreAction('${type}',${id},'delete')">
+        Delete
+      </button>
+    </div>
   `;
 }
+
 
 window.runMoreAction=(type,id,action)=>{const map={dad:[editDad,deleteDad],expense:[editExpense,deleteExpense],semesterDad:[editSemesterDad,deleteSemesterDad],semesterPayment:[editSemesterPayment,deleteSemesterPayment]};const fn=map[type]?.[action==='edit'?0:1];if(fn)fn(id)};
 function openModal(t,h){$('modalTitle').textContent=t;$('modalForm').innerHTML=h;$('modal').classList.remove('hidden')} function closeModal(){$('modal').classList.add('hidden')}
