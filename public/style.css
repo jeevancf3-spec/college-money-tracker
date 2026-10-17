@@ -68,3 +68,52 @@ td strong{color:#111;font-weight:850}tbody tr:hover{background:#fff9d8}
 @media(max-width:600px){body{padding:11px;background-size:10px 10px}.topbar{padding:21px;border-radius:18px;box-shadow:5px 5px 0 #111}.tabs{box-shadow:3px 3px 0 #111}.panel,.chart-panel{box-shadow:3px 3px 0 #111}.card{box-shadow:2px 2px 0 #111}}
 
 .account-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:12px;flex-wrap:wrap}.account-actions span{font-size:12px;font-weight:800;color:#39352f}.account-actions button{cursor:pointer}
+
+/* Responsive readability and receipt/college-money additions */
+.card.college-money{background:#fff0a6;border-color:#e8d66a}
+td,th{font-weight:600}
+th{font-weight:750;letter-spacing:.02em}
+td{font-size:14px}
+.receipt-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.check-field{display:flex;align-items:center;gap:9px;font-weight:600}
+.check-field input{width:auto;min-width:18px;min-height:18px}
+.college-tag{display:inline-block;border-radius:6px;background:#fff0a6;padding:3px 6px;font-size:11px;font-weight:700}
+@media(max-width:640px){
+ body{padding:12px}
+ .topbar{padding:18px 16px;border-radius:18px}
+ .tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .tab{padding:10px 6px;min-width:0}
+ .cards,.cards.small{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .dashboard-charts,.two-col{grid-template-columns:minmax(0,1fr)}
+ .panel{padding:14px;border-radius:17px}
+ .section-head{gap:12px;align-items:flex-start;flex-wrap:wrap}
+ .section-head .primary{max-width:100%}
+ .filters{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+ .filters input,.filters select{width:100%;min-width:0}
+ .table-wrap{overflow:visible}
+ table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0}
+ th,td{padding:10px 6px;font-size:12px;overflow-wrap:anywhere}
+ th{font-size:10px}
+ td .action{padding:5px 7px;margin:2px 0;font-size:11px}
+ .card{padding:14px}
+ .card strong{font-size:19px}
+}
+/* Dashboard summary now focuses on total received and money remaining for college. */
+#dashboard > .cards:first-child{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:560px){#dashboard > .cards:first-child{grid-template-columns:1fr}}
+.receipt-viewer{width:min(760px,100%)}
+
+
+/* Record actions menu and dashboard money cards */
+.more-menu{position:relative;display:inline-block;z-index:2}.more-menu>summary{list-style:none;cursor:pointer;border:1px solid #242424;border-radius:10px;padding:3px 10px;font-size:22px;font-weight:700;line-height:1.1;background:#fff}.more-menu>summary::-webkit-details-marker{display:none}.more-menu-items{position:absolute;right:0;top:calc(100% + 5px);min-width:105px;padding:5px;background:#fff;border:1px solid #222;border-radius:10px;box-shadow:3px 3px 0 #222;display:flex;flex-direction:column;gap:4px;z-index:20}.more-menu-items button{background:#fff;border:0;border-radius:6px;text-align:left;padding:8px;cursor:pointer;font:inherit}.more-menu-items button:hover{background:#fff1a6}.more-menu-items .danger-text{color:#a11}.pocket-money{background:#c8f0b4}.cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:700px){.cards{grid-template-columns:repeat(1,minmax(0,1fr))}.table-wrap{overflow-x:auto}.more-menu-items{position:fixed;right:18px}}
+
+/* V10: fit transaction tables to phone width without sideways scrolling. */
+@media(max-width:700px){
+ .table-wrap{width:100%;max-width:100%;overflow-x:hidden;overflow-y:visible}
+ .table-wrap table{width:100%;min-width:0;max-width:100%;table-layout:fixed}
+ .table-wrap th,.table-wrap td{padding:8px 4px;font-size:10px;overflow-wrap:anywhere;word-break:normal}
+ .table-wrap th{font-size:9px;letter-spacing:0}
+ .table-wrap td .more-menu>summary{padding:3px 6px;font-size:18px}
+ .table-wrap td .action{padding:4px 5px;font-size:9px}
+}

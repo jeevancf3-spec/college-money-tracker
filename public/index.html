@@ -26,9 +26,10 @@
   <main>
     <section id="dashboard" class="section active">
       <div class="cards">
-        <div class="card received"><span>Total Received (Dad)</span><strong id="totalReceived">₹0.00</strong></div>
-        <div class="card spent"><span>Total Spent (All)</span><strong id="totalSpent">₹0.00</strong></div>
-        <div class="card balance"><span>Overall Balance</span><strong id="balance">₹0.00</strong></div>
+        <div class="card received"><span>Overall Total (All)</span><strong id="totalReceived">₹0.00</strong></div>
+        <div class="card college-money"><span>Money to College</span><strong id="collegeMoneyTotal">₹0.00</strong></div>
+        <div class="card pocket-money"><span>Student Pocket Money</span><strong id="studentPocketMoney">₹0.00</strong></div>
+        <div class="card"><span>Total Student Spent</span><strong id="totalStudentSpent">₹0.00</strong></div>
       </div>
 
       <div class="cards small">
@@ -79,7 +80,7 @@
         <select id="dadSort"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="highest">Highest Amount</option><option value="lowest">Lowest Amount</option></select>
       </div>
       <div class="cards small"><div class="card"><span>Filtered Total</span><strong id="dadFilteredTotal">₹0.00</strong></div></div>
-      <div class="panel table-wrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="dadTable"></tbody></table></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Reason</th><th>Receipt</th><th>More</th></tr></thead><tbody id="dadTable"></tbody></table></div>
     </section>
 
     <section id="expenses" class="section">
@@ -92,7 +93,7 @@
         <select id="expenseSort"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="highest">Highest Amount</option><option value="lowest">Lowest Amount</option></select>
       </div>
       <div class="cards small"><div class="card"><span>Filtered Total</span><strong id="expenseFilteredTotal">₹0.00</strong></div></div>
-      <div class="panel table-wrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Category</th><th>Note</th><th>Actions</th></tr></thead><tbody id="expenseTable"></tbody></table></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Category</th><th>Note</th><th>More</th></tr></thead><tbody id="expenseTable"></tbody></table></div>
     </section>
 
     <section id="semester" class="section">
@@ -102,7 +103,7 @@
       <div class="semester-cards large">
         <div><span>Total Semester Fee Paid</span><strong id="semesterPaidBig">₹0.00</strong></div>
         <div><span>Total Semester Fee Money from Dad</span><strong id="semesterDadBig">₹0.00</strong></div>
-        <div><span>Overall Total Received (Dad)</span><strong id="semesterOverallReceived">₹0.00</strong></div>
+        <div><span>Overall Overall Total (All)</span><strong id="semesterOverallReceived">₹0.00</strong></div>
         <div><span>Overall Total Spent</span><strong id="semesterOverallSpent">₹0.00</strong></div>
       </div>
       <div class="panel">
@@ -113,16 +114,19 @@
           <select id="semesterPreset"><option value="">All dates</option><option value="today">Today</option><option value="month">This Month</option><option value="year">This Year</option></select>
           <select id="semesterSort"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="highest">Highest Amount</option><option value="lowest">Lowest Amount</option></select>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Semester</th><th>Amount Paid</th><th>Date Paid</th><th>Note</th><th>Actions</th></tr></thead><tbody id="semesterPaidTable"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Semester</th><th>Amount Paid</th><th>Date Paid</th><th>Note</th><th>Receipt</th><th>More</th></tr></thead><tbody id="semesterPaidTable"></tbody></table></div>
       </div>
       <div class="panel">
         <div class="section-head"><div><h2>Dad → Semester Fee Money</h2><p>Keep money Dad gave for semester fee separate from the actual college payment.</p></div><button class="primary" onclick="openSemesterDadForm()">+ Add Money</button></div>
         <div class="cards small"><div class="card"><span>Total from Dad for Semester Fee</span><strong id="semesterDadListTotal">₹0.00</strong></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Semester</th><th>Amount</th><th>Date Received</th><th>Note</th><th>Actions</th></tr></thead><tbody id="semesterDadTable"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Semester</th><th>Amount</th><th>Date Received</th><th>Note</th><th>Receipt</th><th>More</th></tr></thead><tbody id="semesterDadTable"></tbody></table></div>
       </div>
     </section>
   </main>
 
+  <div id="receiptModal" class="modal hidden" onclick="if(event.target===this)closeReceiptModal()">
+    <div class="modal-box receipt-viewer"><button class="close" onclick="closeReceiptModal()">×</button><h2>Receipt</h2><img id="receiptPreview" alt="Receipt image" style="display:block;max-width:100%;max-height:72vh;object-fit:contain;margin:auto;border-radius:10px"><a id="receiptOpenLink" target="_blank" rel="noopener" class="action" style="display:inline-block;margin-top:12px">Open image</a></div>
+  </div>
   <div id="modal" class="modal hidden">
     <div class="modal-box">
       <button class="close" onclick="closeModal()">×</button>

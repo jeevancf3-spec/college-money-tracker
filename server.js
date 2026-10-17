@@ -66,12 +66,31 @@ function loadLocalData() {
   }
 }
 
+function truthyFlag(value) {
+  if (value === true || value === 1) return true;
+  if (typeof value === "string") return ["true", "1", "yes", "on", "checked"].includes(value.trim().toLowerCase());
+  return false;
+}
+function normalizedAmount(row) {
+  const raw = row?.amount ?? row?.value ?? row?.total ?? row?.money;
+  const n = Number(String(raw ?? 0).replace(/[₹,\s]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+function hasCollegeFlag(row) {
+  // Some earlier builds stored the checkbox under different names; accept any affirmative legacy field.
+  return [row?.collegeMoney, row?.college_money, row?.forCollege, row?.isCollegeMoney, row?.is_college_money, row?.moneyToCollege, row?.money_to_college, row?.for_college, row?.college].some(truthyFlag);
+}
 function normalizeData(input) {
   const d = { ...emptyData(), ...(input || {}) };
   d.dad = Array.isArray(d.dad) ? d.dad : [];
   d.expenses = Array.isArray(d.expenses) ? d.expenses : [];
   d.semesterDad = Array.isArray(d.semesterDad) ? d.semesterDad : [];
   d.semesterPayments = Array.isArray(d.semesterPayments) ? d.semesterPayments : [];
+  // Normalize legacy field names without dropping any saved transactions.
+  d.dad = d.dad.map(x => ({ ...x, amount: normalizedAmount(x), collegeMoney: hasCollegeFlag(x) }));
+  d.expenses = d.expenses.map(x => ({ ...x, amount: normalizedAmount(x) }));
+  d.semesterDad = d.semesterDad.map(x => ({ ...x, amount: normalizedAmount(x) }));
+  d.semesterPayments = d.semesterPayments.map(x => ({ ...x, amount: normalizedAmount(x) }));
   d.nextDadId = Math.max(Number(d.nextDadId) || 1, ...d.dad.map(x => Number(x.id) + 1 || 1));
   d.nextExpenseId = Math.max(Number(d.nextExpenseId) || 1, ...d.expenses.map(x => Number(x.id) + 1 || 1));
   d.nextSemesterDadId = Math.max(Number(d.nextSemesterDadId) || 1, ...d.semesterDad.map(x => Number(x.id) + 1 || 1));
@@ -129,7 +148,7 @@ function saveData() {
 }
 
 app.disable("x-powered-by");
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "12mb" }));
 app.use((req, res, next) => {
   req.sessionUser = readSession(req.headers.cookie || "");
   next();
@@ -199,6 +218,9 @@ const dadReasons = ["Print", "Text", "Food", "Fine", "Other"];
 const expenseCategories = ["Print", "Text", "Food", "Fine", "Other"];
 const validAmount = v => Number.isFinite(Number(v)) && Number(v) > 0;
 const validDate = v => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+function validReceipt(value) {
+  return typeof value === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value) && value.length <= 7_000_000;
+}
 function validateDad(b) {
   if (!validAmount(b.amount) || !validDate(b.date) || !dadReasons.includes(b.reason)) return "Amount, date and a valid reason are required.";
   if (b.reason === "Other" && !String(b.customReason || "").trim()) return "Custom reason is required when Other is selected.";
@@ -231,7 +253,7 @@ function filterRows(rows, q) {
   else r.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
   return r;
 }
-function sum(rows) { return rows.reduce((a, x) => a + Number(x.amount), 0); }
+function sum(rows) { return rows.reduce((a, x) => a + normalizedAmount(x), 0); }
 
 app.get("/api/dad", (req, res) => res.json(filterRows(data.dad, req.query)));
 app.get("/api/expenses", (req, res) => res.json(filterRows(data.expenses, req.query)));
@@ -240,13 +262,15 @@ app.get("/api/semester/payments", (req, res) => res.json(filterRows(data.semeste
 
 app.post("/api/dad", asyncRoute(async (req, res) => {
   const e = validateDad(req.body); if (e) return res.status(400).json({ error: e });
-  const r = { id: data.nextDadId++, amount: Number(req.body.amount), date: req.body.date, reason: req.body.reason, custom_reason: req.body.reason === "Other" ? String(req.body.customReason).trim() : null };
+  const r = { id: data.nextDadId++, amount: Number(req.body.amount), date: req.body.date, reason: req.body.reason, custom_reason: req.body.reason === "Other" ? String(req.body.customReason).trim() : null,
+    collegeMoney: Boolean(req.body.collegeMoney), receipt: validReceipt(req.body.receipt) ? req.body.receipt : null };
   data.dad.push(r); await saveData(); res.status(201).json({ id: r.id });
 }));
 app.put("/api/dad/:id", asyncRoute(async (req, res) => {
   const e = validateDad(req.body); if (e) return res.status(400).json({ error: e });
   const r = data.dad.find(x => x.id === Number(req.params.id)); if (!r) return res.status(404).json({ error: "Transaction not found." });
-  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, reason: req.body.reason, custom_reason: req.body.reason === "Other" ? String(req.body.customReason).trim() : null });
+  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, reason: req.body.reason, custom_reason: req.body.reason === "Other" ? String(req.body.customReason).trim() : null,
+    collegeMoney: Boolean(req.body.collegeMoney), receipt: validReceipt(req.body.receipt) ? req.body.receipt : (req.body.receipt === "" ? null : r.receipt) });
   await saveData(); res.json({ ok: true });
 }));
 app.delete("/api/dad/:id", asyncRoute(async (req, res) => {
@@ -256,13 +280,16 @@ app.delete("/api/dad/:id", asyncRoute(async (req, res) => {
 
 app.post("/api/expenses", asyncRoute(async (req, res) => {
   const e = validateExpense(req.body); if (e) return res.status(400).json({ error: e });
-  const r = { id: data.nextExpenseId++, amount: Number(req.body.amount), date: req.body.date, category: req.body.category, custom_category: req.body.category === "Other" ? String(req.body.customCategory).trim() : null, note: String(req.body.note || "").trim() || null };
+  const studentPocketMoney = Math.max(0, sum(data.dad.filter(x => !hasCollegeFlag(x))) - sum(data.expenses));
+  if (studentPocketMoney <= 0) return res.status(400).json({ error: "Student Pocket Money is ₹0.00. Add money from Dad without ticking ‘This money is for college’ before adding an expense." });
+  if (Number(req.body.amount) > studentPocketMoney) return res.status(400).json({ error: `This expense is more than the available Student Pocket Money (${studentPocketMoney.toFixed(2)}).` });
+  const r = { id: data.nextExpenseId++, amount: Number(req.body.amount), date: req.body.date, category: req.body.category, custom_category: req.body.category === "Other" ? String(req.body.customCategory).trim() : null, note: String(req.body.note || "").trim() || null, receipt: validReceipt(req.body.receipt) ? req.body.receipt : null };
   data.expenses.push(r); await saveData(); res.status(201).json({ id: r.id });
 }));
 app.put("/api/expenses/:id", asyncRoute(async (req, res) => {
   const e = validateExpense(req.body); if (e) return res.status(400).json({ error: e });
   const r = data.expenses.find(x => x.id === Number(req.params.id)); if (!r) return res.status(404).json({ error: "Expense not found." });
-  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, category: req.body.category, custom_category: req.body.category === "Other" ? String(req.body.customCategory).trim() : null, note: String(req.body.note || "").trim() || null });
+  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, category: req.body.category, custom_category: req.body.category === "Other" ? String(req.body.customCategory).trim() : null, note: String(req.body.note || "").trim() || null, receipt: validReceipt(req.body.receipt) ? req.body.receipt : (req.body.receipt === "" ? null : r.receipt) });
   await saveData(); res.json({ ok: true });
 }));
 app.delete("/api/expenses/:id", asyncRoute(async (req, res) => {
@@ -277,13 +304,13 @@ function semesterValidation(req, res) {
 }
 app.post("/api/semester/dad", asyncRoute(async (req, res) => {
   if (!semesterValidation(req, res)) return;
-  const r = { id: data.nextSemesterDadId++, amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null };
+  const r = { id: data.nextSemesterDadId++, amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null, receipt: validReceipt(req.body.receipt) ? req.body.receipt : null };
   data.semesterDad.push(r); await saveData(); res.status(201).json({ id: r.id });
 }));
 app.put("/api/semester/dad/:id", asyncRoute(async (req, res) => {
   if (!semesterValidation(req, res)) return;
   const r = data.semesterDad.find(x => x.id === Number(req.params.id)); if (!r) return res.status(404).json({ error: "Semester Fee record not found." });
-  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null });
+  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null, receipt: validReceipt(req.body.receipt) ? req.body.receipt : (req.body.receipt === "" ? null : r.receipt) });
   await saveData(); res.json({ ok: true });
 }));
 app.delete("/api/semester/dad/:id", asyncRoute(async (req, res) => {
@@ -292,13 +319,13 @@ app.delete("/api/semester/dad/:id", asyncRoute(async (req, res) => {
 }));
 app.post("/api/semester/payments", asyncRoute(async (req, res) => {
   if (!semesterValidation(req, res)) return;
-  const r = { id: data.nextSemesterPaymentId++, amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null };
+  const r = { id: data.nextSemesterPaymentId++, amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null, receipt: validReceipt(req.body.receipt) ? req.body.receipt : null };
   data.semesterPayments.push(r); await saveData(); res.status(201).json({ id: r.id });
 }));
 app.put("/api/semester/payments/:id", asyncRoute(async (req, res) => {
   if (!semesterValidation(req, res)) return;
   const r = data.semesterPayments.find(x => x.id === Number(req.params.id)); if (!r) return res.status(404).json({ error: "Payment not found." });
-  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null });
+  Object.assign(r, { amount: Number(req.body.amount), date: req.body.date, semester: String(req.body.semester || "").trim(), note: String(req.body.note || "").trim() || null, receipt: validReceipt(req.body.receipt) ? req.body.receipt : (req.body.receipt === "" ? null : r.receipt) });
   await saveData(); res.json({ ok: true });
 }));
 app.delete("/api/semester/payments/:id", asyncRoute(async (req, res) => {
@@ -309,13 +336,17 @@ app.delete("/api/semester/payments/:id", asyncRoute(async (req, res) => {
 app.get("/api/summary", (req, res) => {
   const received = sum(data.dad) + sum(data.semesterDad);
   const spent = sum(data.expenses) + sum(data.semesterPayments);
+  const moneyToCollege = sum(data.dad.filter(x => hasCollegeFlag(x)));
+  const studentPocketReceived = sum(data.dad.filter(x => !hasCollegeFlag(x)));
+  const totalStudentSpent = sum(data.expenses);
+  const studentPocketMoney = Math.max(0, studentPocketReceived - totalStudentSpent);
   const today = new Date().toISOString().slice(0, 10), month = today.slice(0, 7), year = today.slice(0, 4);
   const allDad = [...data.dad, ...data.semesterDad], allSpent = [...data.expenses, ...data.semesterPayments];
   const period = p => ({ received: sum(allDad.filter(x => p(x.date))), spent: sum(allSpent.filter(x => p(x.date))) });
   const group = (rows, key) => Object.values(rows.reduce((o, x) => {
     const k = x[key]; o[k] ??= { [key]: k, total: 0 }; o[k].total += Number(x.amount); return o;
   }, {}));
-  res.json({ received, spent, balance: received - spent, dadSemester: sum(data.semesterDad), paidSemester: sum(data.semesterPayments), overallNonSemesterReceived: sum(data.dad), overallNonSemesterSpent: sum(data.expenses), periods: { today: period(d => d === today), month: period(d => d.slice(0, 7) === month), year: period(d => d.slice(0, 4) === year) }, dadByReason: group(data.dad, "reason"), expenseByCategory: group(data.expenses, "category"), semesterDadCount: data.semesterDad.length, semesterPaymentCount: data.semesterPayments.length });
+  res.json({ received, spent, balance: received - spent, dadSemester: sum(data.semesterDad), paidSemester: sum(data.semesterPayments), collegeMoney: moneyToCollege, studentPocketMoney, studentPocketReceived, totalStudentSpent, overallNonSemesterReceived: sum(data.dad), overallNonSemesterSpent: sum(data.expenses), periods: { today: period(d => d === today), month: period(d => d.slice(0, 7) === month), year: period(d => d.slice(0, 4) === year) }, dadByReason: Object.values(data.dad.reduce((o, x) => { const label = x.reason === "Other" ? (String(x.custom_reason || "").trim() || "Other") : x.reason; o[label] ??= { reason: label, total: 0 }; o[label].total += Number(x.amount); return o; }, {})), expenseByCategory: group(data.expenses, "category"), semesterDadCount: data.semesterDad.length, semesterPaymentCount: data.semesterPayments.length });
 });
 
 app.get("*", requireLogin, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
