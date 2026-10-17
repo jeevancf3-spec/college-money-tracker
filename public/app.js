@@ -31,7 +31,19 @@ function normalizedSemester(value){const m=String(value||'').match(/(?:semester\
 function semesterSelect(value){const current=normalizedSemester(value);return `<select id="fSemester" required><option value="">Select semester</option>${Array.from({length:8},(_,i)=>{const label=`Semester ${i+1}`;return `<option value="${label}" ${current===label?'selected':''}>${label}</option>`}).join('')}</select>`}
 function displaySemester(value){return esc(normalizedSemester(value)||value||'-')}
 async function loadSemester(){const query=q('semester');semesterDadRows=await api('/api/semester/dad?'+query);semesterPaymentRows=await api('/api/semester/payments?'+query);$('semesterDadTable').innerHTML=semesterDadRows.length?semesterDadRows.map(x=>`<tr><td>${displaySemester(x.semester)}</td><td>${money(x.amount)}</td><td>${x.date}</td><td>${esc(x.note||'')}</td><td>${x.receipt?`<button class="action" onclick="viewReceipt('semesterDad',${x.id})">Receipt</button>`:'<span class="muted">Receipt not added</span>'}</td><td>${moreMenu('semesterDad',x.id)}</td></tr>`).join(''):'<tr><td colspan="6" class="muted">No Dad Semester Fee records yet.</td></tr>';$('semesterPaidTable').innerHTML=semesterPaymentRows.length?semesterPaymentRows.map(x=>`<tr><td>${displaySemester(x.semester)}</td><td>${money(x.amount)}</td><td>${x.date}</td><td>${esc(x.note||'')}</td><td>${x.receipt?`<button class="action" onclick="viewReceipt('semesterPayment',${x.id})">Receipt</button>`:'<span class="muted">Receipt not added</span>'}</td><td>${moreMenu('semesterPayment',x.id)}</td></tr>`).join(''):'<tr><td colspan="6" class="muted">No college Semester Fee payments yet.</td></tr>';$('semesterFilteredTotal').textContent=money(semesterPaymentRows.reduce((a,x)=>a+Number(x.amount),0));$('semesterDadListTotal').textContent=money(semesterDadRows.reduce((a,x)=>a+Number(x.amount),0))}
-function moreMenu(type,id){return `<details class="more-menu"><summary aria-label="More actions">⋮</summary><div class="more-menu-items"><button type="button" onclick="runMoreAction('${type}',${id},'edit')">Edit</button><button type="button" class="danger-text" onclick="runMoreAction('${type}',${id},'delete')">Delete</button></div></details>`}window.runMoreAction=(type,id,action)=>{const map={dad:[editDad,deleteDad],expense:[editExpense,deleteExpense],semesterDad:[editSemesterDad,deleteSemesterDad],semesterPayment:[editSemesterPayment,deleteSemesterPayment]};const fn=map[type]?.[action==='edit'?0:1];if(fn)fn(id)};
+
+function moreMenu(type, id) {
+  return `
+    <details class="more-menu">
+      <summary aria-label="More actions" role="button" tabindex="0">⋮</summary>
+      <div class="more-menu-items">
+        <button type="button" onclick="runMoreAction('${type}',${id},'edit')">Edit</button>
+        <button type="button" class="danger-text" onclick="runMoreAction('${type}',${id},'delete')">Delete</button>
+      </div>
+    </details>
+  `;
+}
+window.runMoreAction=(type,id,action)=>{const map={dad:[editDad,deleteDad],expense:[editExpense,deleteExpense],semesterDad:[editSemesterDad,deleteSemesterDad],semesterPayment:[editSemesterPayment,deleteSemesterPayment]};const fn=map[type]?.[action==='edit'?0:1];if(fn)fn(id)};
 function openModal(t,h){$('modalTitle').textContent=t;$('modalForm').innerHTML=h;$('modal').classList.remove('hidden')} function closeModal(){$('modal').classList.add('hidden')}
 function field(row,label){return `<div class="form-row"><label>${label}</label>${row}</div>`}
 function receiptInput(existing){return field(`<input id="fReceiptFile" type="file" accept="image/*" capture="environment"><input id="fReceiptData" type="hidden" value="${existing||''}"><div class="receipt-actions">${existing?'<button type="button" class="action" onclick="viewReceiptData()">View current receipt</button> ':''}<button type="button" class="action" onclick="clearReceipt()">Remove receipt</button></div><small class="muted">Optional. Take a photo or choose an image.</small>`,'Receipt (optional)')}
