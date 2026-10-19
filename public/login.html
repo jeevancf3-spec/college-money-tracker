@@ -19,6 +19,7 @@
     .field{display:grid;gap:7px;margin:15px 0}.field label{font-size:12px;font-weight:900;color:#3e3932}.field input{width:100%;padding:13px 14px;border:1.5px solid #111;border-radius:11px;background:white;color:#111;font:inherit;font-weight:650;outline:none}.field input:focus{box-shadow:3px 3px 0 #ffdf32}
     .login-submit{width:100%;margin-top:9px;padding:13px 16px;border:1.8px solid #111;border-radius:12px;background:#ffdf32;color:#111;font-weight:950;box-shadow:3px 3px 0 #111;cursor:pointer}.login-submit:disabled{opacity:.65;cursor:wait}
     .login-error{display:none;margin:12px 0 0;padding:11px 12px;border:1px solid #b4234b;border-radius:10px;background:#ffe6ec;color:#8e1537;font-size:13px;font-weight:750}.login-foot{text-align:center;margin:19px 0 0;color:#6c655b;font-size:11px;font-weight:650}
+    .login-switch{display:block;width:100%;margin-top:17px;padding:10px;border:0;background:transparent;color:#34302a;font:inherit;font-size:13px;font-weight:850;text-decoration:underline;cursor:pointer}.login-switch:focus-visible{outline:2px solid #111;outline-offset:3px}.signup-note{font-size:12px;color:#625d55;line-height:1.5;margin:0 0 12px}
   </style>
 </head>
 <body>
@@ -27,10 +28,20 @@
     <section class="login-card" aria-labelledby="loginTitle">
       <h2 id="loginTitle">Welcome back</h2><p class="hint">Sign in with your private account to open the tracker.</p>
       <form id="loginForm">
-        <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required maxlength="80" autofocus></div>
+        <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required maxlength="30" autofocus></div>
         <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="200"></div>
         <button class="login-submit" id="submitButton" type="submit">Log in <span aria-hidden="true">→</span></button>
         <p class="login-error" id="errorMessage" role="alert"></p>
+        <button class="login-switch" id="showSignup" type="button">New here? Create an account</button>
+      </form>
+      <form id="signupForm" hidden>
+        <p class="signup-note">Create your own private tracker. Your money records will be separate from every other account.</p>
+        <div class="field"><label for="newUsername">Choose a username</label><input id="newUsername" name="username" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_.-]{3,30}"></div>
+        <div class="field"><label for="newPassword">Create password</label><input id="newPassword" name="new-password" type="password" autocomplete="new-password" required minlength="8" maxlength="200"></div>
+        <div class="field"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" name="confirm-password" type="password" autocomplete="new-password" required minlength="8" maxlength="200"></div>
+        <button class="login-submit" id="signupButton" type="submit">Create account <span aria-hidden="true">→</span></button>
+        <p class="login-error" id="signupError" role="alert"></p>
+        <button class="login-switch" id="showLogin" type="button">Already have an account? Log in</button>
       </form>
     </section>
     <p class="login-foot">Private access · My College Money Tracker</p>

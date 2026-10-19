@@ -1,21 +1,24 @@
 # My College Money Tracker
 
-A Node.js/Express app for tracking money received from Dad, personal expenses, and semester fees.
+Node.js + Express app using PostgreSQL for persistent tracker data.
 
-## Login setup (local)
+## Run locally
+1. Install Node.js LTS.
+2. Extract this ZIP.
+3. In this folder run `npm install`.
+4. Copy `.env.example` to `.env` and fill in your own private values.
+5. Run `npm start`.
+6. Open `http://localhost:3000`.
 
-1. Install Node.js LTS if it is not already installed.
-2. In this project folder, copy `.env.example` and name the copy `.env`.
-3. Edit `.env` and set a unique `SESSION_SECRET` (at least 32 characters), `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `DAD_USERNAME`, and `DAD_PASSWORD`. Use different usernames and strong, unique passwords. Do not share or upload `.env`.
-4. Open a terminal in this folder and run `npm install`.
-5. Run `npm start` and open `http://localhost:3000`.
-6. Sign in using the credentials you set in `.env`.
+Keep `.env` private. Never commit it to GitHub or send your database connection string/passwords in chat. This package does not include your local financial-data JSON or `node_modules`; keep your own backup safe.
 
-The app now requires a login session for all `/api` data endpoints and the tracker page. Both accounts access the same shared tracker, as intended for the student and Dad.
+See `TEST-RESULTS.md` for what was and was not tested. This is not yet the full family-registration/Parent-Student feature update.
 
-## Important before public hosting
 
-- The current transactions are still stored in `money-tracker-data.json`. Keep a separate backup.
-- Do not upload `.env` or `money-tracker-data.json` to GitHub. `.gitignore` excludes both, but check your repository before pushing.
-- This version adds login but does **not** yet migrate transaction storage to a managed persistent database. Do not deploy it publicly until persistent storage and a production session store are configured. The default Express session store is in-memory and is not suitable for production.
-- Use HTTPS for any public deployment and set `NODE_ENV=production` on the host.
+## Individual accounts and private data
+
+The login page now supports account creation. Each new account receives its own PostgreSQL data row and can only read or change its own tracker records. Passwords are stored as salted scrypt hashes.
+
+On the first deployment of this version, existing records in `college_money_tracker_state` are copied (not deleted) into the account named by `ADMIN_USERNAME`. The legacy row remains intact as a safety copy. The existing environment-configured accounts are retained; new sign-ups use a username and a password of at least 8 characters.
+
+Before deploying, take a Neon database backup/snapshot if available. Deploy this version without changing `DATABASE_URL` or `SESSION_SECRET`. After deploy, log in with the existing `ADMIN_USERNAME` account and verify the existing records are present before using other accounts. New accounts start with empty data.

@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const { AsyncLocalStorage } = require("async_hooks");
 const { Pool } = require("pg");
 
 // Load local .env without an extra dependency. Host environment variables take priority.
@@ -23,17 +24,15 @@ const SESSION_COOKIE = "mct.sid";
 const SESSION_MAX_AGE = 8 * 60 * 60 * 1000;
 const DATABASE_URL = process.env.DATABASE_URL;
 
-const USERS = [
+// Existing environment-configured accounts are retained as initial accounts.
+// New users can create their own private accounts from the login page.
+const INITIAL_USERS = [
   { username: process.env.ADMIN_USERNAME, password: process.env.ADMIN_PASSWORD, role: "admin" },
   { username: process.env.DAD_USERNAME, password: process.env.DAD_PASSWORD, role: "dad" }
 ].filter(user => user.username && user.password);
 
 if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
   console.error("Missing/weak SESSION_SECRET. Set a random secret of at least 32 characters in .env or the host environment.");
-  process.exit(1);
-}
-if (USERS.length !== 2 || USERS[0].username === USERS[1].username) {
-  console.error("Set distinct ADMIN_USERNAME/ADMIN_PASSWORD and DAD_USERNAME/DAD_PASSWORD values in .env.");
   process.exit(1);
 }
 if (!DATABASE_URL) {
@@ -110,39 +109,137 @@ function normalizeData(input) {
   return d;
 }
 
-let data = emptyData();
+const requestStorage = new AsyncLocalStorage();
+const dataCache = new Map();
 let writeQueue = Promise.resolve();
 
+// Existing handlers can keep using `data`, but it resolves to the authenticated
+// user's own data for each request rather than a process-wide shared object.
+const data = new Proxy({}, {
+  get(_target, property) {
+    const store = requestStorage.getStore();
+    if (!store) throw new Error("User data was accessed outside an authenticated request.");
+    return store.data[property];
+  },
+  set(_target, property, value) {
+    const store = requestStorage.getStore();
+    if (!store) throw new Error("User data was changed outside an authenticated request.");
+    store.data[property] = value;
+    return true;
+  },
+  ownKeys() {
+    const store = requestStorage.getStore();
+    return store ? Reflect.ownKeys(store.data) : [];
+  },
+  getOwnPropertyDescriptor(_target, property) {
+    const store = requestStorage.getStore();
+    if (!store || !(property in store.data)) return undefined;
+    return { configurable: true, enumerable: true, writable: true, value: store.data[property] };
+  }
+});
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(String(password), salt, 64).toString("hex");
+  return `scrypt$${salt}$${hash}`;
+}
+function verifyPassword(password, stored) {
+  const parts = String(stored || "").split("$");
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
+  try {
+    const actual = crypto.scryptSync(String(password), parts[1], 64);
+    const expected = Buffer.from(parts[2], "hex");
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+  } catch { return false; }
+}
+function normalizeUsername(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 async function initializeDatabase() {
+  // Keep the legacy state table intact as a safety copy. New account data is stored separately.
   await pool.query(`CREATE TABLE IF NOT EXISTS college_money_tracker_state (
     id SMALLINT PRIMARY KEY CHECK (id = 1),
     data JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS college_money_tracker_users (
+    id BIGSERIAL PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS college_money_tracker_user_state (
+    user_id BIGINT PRIMARY KEY REFERENCES college_money_tracker_users(id) ON DELETE CASCADE,
+    data JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
 
-  const existing = await pool.query("SELECT data FROM college_money_tracker_state WHERE id = 1");
-  if (existing.rowCount > 0) {
-    // Once initialized, the database is authoritative; never overwrite it with an old local file.
-    data = normalizeData(existing.rows[0].data);
-    console.log("Loaded tracker data from PostgreSQL.");
-  } else {
-    // First run: preserve and import existing local JSON records if the file exists.
-    data = normalizeData(loadLocalData());
+  // Seed the two previously configured logins without replacing an existing account.
+  for (const user of INITIAL_USERS) {
+    const username = normalizeUsername(user.username);
+    if (!username || !user.password) continue;
+    await pool.query(
+      "INSERT INTO college_money_tracker_users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
+      [username, hashPassword(user.password), user.role || "user"]
+    );
+  }
+
+  // Migrate the current shared tracker records into the old ADMIN account once only.
+  // The original table is deliberately not deleted or modified.
+  const legacy = await pool.query("SELECT data FROM college_money_tracker_state WHERE id = 1");
+  let legacyData = legacy.rowCount ? normalizeData(legacy.rows[0].data) : null;
+  if (!legacyData) {
+    legacyData = normalizeData(loadLocalData());
     await pool.query(
       "INSERT INTO college_money_tracker_state (id, data) VALUES (1, $1::jsonb) ON CONFLICT (id) DO NOTHING",
-      [JSON.stringify(data)]
+      [JSON.stringify(legacyData)]
     );
     const confirmed = await pool.query("SELECT data FROM college_money_tracker_state WHERE id = 1");
-    data = normalizeData(confirmed.rows[0].data);
-    console.log("Initialized PostgreSQL tracker data. Existing local JSON data was imported if present.");
+    legacyData = normalizeData(confirmed.rows[0].data);
   }
+
+  const legacyOwner = normalizeUsername(process.env.ADMIN_USERNAME);
+  if (legacyOwner) {
+    const ownerResult = await pool.query("SELECT id FROM college_money_tracker_users WHERE username = $1", [legacyOwner]);
+    if (ownerResult.rowCount) {
+      await pool.query(
+        "INSERT INTO college_money_tracker_user_state (user_id, data) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO NOTHING",
+        [ownerResult.rows[0].id, JSON.stringify(legacyData)]
+      );
+    } else {
+      console.warn("ADMIN_USERNAME account not found; legacy data remains preserved in college_money_tracker_state.");
+    }
+  }
+
+  // Give every existing account its own empty state if it has no data yet.
+  const users = await pool.query("SELECT id FROM college_money_tracker_users");
+  for (const user of users.rows) {
+    await pool.query(
+      "INSERT INTO college_money_tracker_user_state (user_id, data) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO NOTHING",
+      [user.id, JSON.stringify(emptyData())]
+    );
+  }
+  console.log("Initialized account-isolated tracker data. Legacy records were preserved and assigned to the configured ADMIN account.");
+}
+
+async function loadUserData(userId) {
+  if (dataCache.has(String(userId))) return dataCache.get(String(userId));
+  const result = await pool.query("SELECT data FROM college_money_tracker_user_state WHERE user_id = $1", [userId]);
+  if (!result.rowCount) throw new Error("No private data store exists for this account.");
+  const userData = normalizeData(result.rows[0].data);
+  dataCache.set(String(userId), userData);
+  return userData;
 }
 
 function saveData() {
-  const snapshot = JSON.stringify(data);
-  writeQueue = writeQueue.then(() => pool.query(
-    "UPDATE college_money_tracker_state SET data = $1::jsonb, updated_at = NOW() WHERE id = 1",
-    [snapshot]
+  const store = requestStorage.getStore();
+  if (!store) return Promise.reject(new Error("Cannot save data outside an authenticated account."));
+  const snapshot = JSON.stringify(store.data);
+  writeQueue = writeQueue.catch(() => {}).then(() => pool.query(
+    "INSERT INTO college_money_tracker_user_state (user_id, data, updated_at) VALUES ($1, $2::jsonb, NOW()) ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()",
+    [store.userId, snapshot]
   ));
   return writeQueue;
 }
@@ -199,21 +296,80 @@ app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 app.get("/api/auth/me", (req, res) => res.json({ authenticated: !!req.sessionUser, user: req.sessionUser || null }));
-app.post("/api/auth/login", (req, res) => {
-  const username = String(req.body?.username || "").trim();
+app.post("/api/auth/signup", asyncRoute(async (req, res) => {
+  const username = normalizeUsername(req.body?.username);
   const password = String(req.body?.password || "");
-  const user = USERS.find(candidate => safeEqual(candidate.username, username) && safeEqual(candidate.password, password));
-  if (!user) return res.status(401).json({ error: "Username or password is incorrect." });
-  const sessionUser = { username: user.username, role: user.role };
+  if (!/^[a-z0-9_.-]{3,30}$/.test(username)) {
+    return res.status(400).json({ error: "Username must be 3–30 characters and use letters, numbers, dot, underscore, or hyphen." });
+  }
+  if (password.length < 8 || password.length > 200) {
+    return res.status(400).json({ error: "Password must be at least 8 characters long." });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const created = await client.query(
+      "INSERT INTO college_money_tracker_users (username, password_hash, role) VALUES ($1, $2, 'user') RETURNING id, username, role",
+      [username, hashPassword(password)]
+    );
+    const user = created.rows[0];
+    await client.query(
+      "INSERT INTO college_money_tracker_user_state (user_id, data) VALUES ($1, $2::jsonb)",
+      [user.id, JSON.stringify(emptyData())]
+    );
+    await client.query("COMMIT");
+    dataCache.set(String(user.id), emptyData());
+    const sessionUser = { id: Number(user.id), username: user.username, role: user.role };
+    setSessionCookie(res, sessionUser);
+    res.status(201).json({ ok: true, user: sessionUser });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    if (error.code === "23505") return res.status(409).json({ error: "That username is already taken. Please choose another." });
+    throw error;
+  } finally {
+    client.release();
+  }
+}));
+app.post("/api/auth/login", asyncRoute(async (req, res) => {
+  const username = normalizeUsername(req.body?.username);
+  const password = String(req.body?.password || "");
+  const result = await pool.query(
+    "SELECT id, username, password_hash, role FROM college_money_tracker_users WHERE username = $1",
+    [username]
+  );
+  const user = result.rows[0];
+  if (!user || !verifyPassword(password, user.password_hash)) {
+    return res.status(401).json({ error: "Username or password is incorrect." });
+  }
+  const sessionUser = { id: Number(user.id), username: user.username, role: user.role };
   setSessionCookie(res, sessionUser);
   res.json({ ok: true, user: sessionUser });
-});
+}));
 app.post("/api/auth/logout", (req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
 
 app.use("/api", requireLogin);
+app.use("/api", asyncRoute(async (req, res, next) => {
+  // Upgrade already-issued signed sessions that predate account IDs.
+  if (!req.sessionUser?.id && req.sessionUser?.username) {
+    const legacySessionUser = await pool.query(
+      "SELECT id, username, role FROM college_money_tracker_users WHERE username = $1",
+      [normalizeUsername(req.sessionUser.username)]
+    );
+    if (legacySessionUser.rowCount) {
+      const user = legacySessionUser.rows[0];
+      req.sessionUser = { id: Number(user.id), username: user.username, role: user.role };
+    }
+  }
+  const userId = Number(req.sessionUser?.id);
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    return res.status(401).json({ error: "Please log in again to access your private account." });
+  }
+  const userData = await loadUserData(userId);
+  requestStorage.run({ userId, data: userData }, () => next());
+}));
 const dadReasons = ["Print", "Text", "Food", "Fine", "Other"];
 const expenseCategories = ["Print", "Text", "Food", "Fine", "Other"];
 const validAmount = v => Number.isFinite(Number(v)) && Number(v) > 0;
